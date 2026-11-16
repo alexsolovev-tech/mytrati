@@ -2,46 +2,39 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Мои Финансы</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <style>
-        :root { --primary: #6750A4; --bg: #f8f9fa; --card: #ffffff; --text: #1c1b1f; --green: #2e7d32; --orange: #ed6c02; --red: #d32f2f; --gray: #757575; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { margin: 0; font-family: sans-serif; background: var(--bg); color: var(--text); padding-bottom: 70px; }
-        .header { background: var(--primary); color: white; padding: 20px 16px; position: sticky; top: 0; z-index: 10; }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: sans-serif; background: #f8f9fa; color: #1c1b1f; padding-bottom: 70px; }
+        .header { background: #6750A4; color: white; padding: 20px 16px; position: sticky; top: 0; z-index: 10; }
         .header h1 { margin: 0; font-size: 22px; }
         .header .sync-status { font-size: 12px; opacity: 0.85; margin-top: 4px; }
         .screen { display: none; padding: 16px; }
         .screen.active { display: block; }
-        .card { background: var(--card); border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .balance-card { background: linear-gradient(135deg, #6750A4, #9a82db); color: white; }
         .balance-amount { font-size: 36px; font-weight: 700; margin: 8px 0; }
         .stat-row { display: flex; justify-content: space-between; font-size: 14px; opacity: 0.9; margin-top: 4px; }
-        .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; background: var(--primary); color: white; }
-        .btn-danger { background: var(--red); color: white; }
-        .btn-small { width: auto; padding: 6px 12px; font-size: 13px; margin: 0 4px; border: none; border-radius: 8px; cursor: pointer; }
-        .btn-edit { background: #e3f2fd; color: #1976d2; }
-        .btn-delete { background: #ffebee; color: var(--red); }
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; background: #6750A4; color: white; }
+        .btn-danger { background: #d32f2f; color: white; }
         .input-group { margin-bottom: 16px; }
-        .input-group label { display: block; font-size: 14px; color: var(--gray); margin-bottom: 6px; font-weight: 500; }
+        .input-group label { display: block; font-size: 14px; color: #757575; margin-bottom: 6px; font-weight: 500; }
         .input-group input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; background: white; outline: none; }
         .toggle-group { display: flex; gap: 8px; margin-bottom: 16px; }
         .toggle-btn { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 10px; text-align: center; font-weight: 600; cursor: pointer; background: white; }
-        .toggle-btn.active-expense { background: #ffebee; color: var(--red); border-color: var(--red); }
-        .toggle-btn.active-income { background: #e8f5e9; color: var(--green); border-color: var(--green); }
+        .toggle-btn.active-expense { background: #ffebee; color: #d32f2f; border-color: #d32f2f; }
+        .toggle-btn.active-income { background: #e8f5e9; color: #2e7d32; border-color: #2e7d32; }
         
-        /* Кнопки категорий вместо select */
+        .cat-label { font-size: 14px; color: #757575; margin-bottom: 8px; display: block; font-weight: 500; }
         .cat-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
         .cat-btn {
-            padding: 12px; border: 2px solid #ddd; border-radius: 12px; background: white;
+            padding: 12px 8px; border: 2px solid #ddd; border-radius: 12px; background: white;
             text-align: center; cursor: pointer; font-size: 14px; font-weight: 500;
-            transition: all 0.2s;
         }
-        .cat-btn.selected {
-            border-color: var(--primary); background: #ede7f6; color: var(--primary); font-weight: 700;
-        }
+        .cat-btn.selected { border-color: #6750A4; background: #ede7f6; color: #6750A4; font-weight: 700; }
         .cat-btn .cat-icon { font-size: 24px; display: block; margin-bottom: 4px; }
         
         .transaction-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; }
@@ -49,28 +42,30 @@
         .t-icon { font-size: 28px; margin-right: 12px; width: 40px; text-align: center; }
         .t-info { flex: 1; }
         .t-name { font-weight: 600; font-size: 15px; }
-        .t-note { font-size: 12px; color: var(--gray); margin-top: 2px; }
-        .t-date { font-size: 11px; color: var(--gray); margin-top: 2px; }
+        .t-note { font-size: 12px; color: #757575; margin-top: 2px; }
+        .t-date { font-size: 11px; color: #757575; margin-top: 2px; }
         .t-amount { font-weight: 700; font-size: 16px; }
-        .t-amount.income { color: var(--green); }
-        .t-amount.expense { color: var(--red); }
+        .t-amount.income { color: #2e7d32; }
+        .t-amount.expense { color: #d32f2f; }
         .delete-btn { background: none; border: none; color: #ccc; font-size: 20px; padding: 8px; cursor: pointer; }
         .chart-bar-container { margin-bottom: 16px; }
         .chart-bar-header { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; }
         .chart-bar-track { background: #e0e0e0; border-radius: 6px; height: 12px; overflow: hidden; }
         .chart-bar-fill { height: 100%; border-radius: 6px; }
         .status-badge { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
-        .status-ok { background: #e8f5e9; color: var(--green); }
-        .status-warn { background: #fff3e0; color: var(--orange); }
-        .status-bad { background: #ffebee; color: var(--red); }
+        .status-ok { background: #e8f5e9; color: #2e7d32; }
+        .status-warn { background: #fff3e0; color: #ed6c02; }
+        .status-bad { background: #ffebee; color: #d32f2f; }
         .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; border-top: 1px solid #eee; padding: 8px 0; z-index: 20; }
-        .nav-item { flex: 1; text-align: center; color: var(--gray); font-size: 11px; cursor: pointer; padding: 4px 0; }
-        .nav-item.active { color: var(--primary); font-weight: 600; }
+        .nav-item { flex: 1; text-align: center; color: #757575; font-size: 11px; cursor: pointer; padding: 4px 0; }
+        .nav-item.active { color: #6750A4; font-weight: 600; }
         .nav-item .icon { font-size: 22px; display: block; margin-bottom: 2px; }
-        .fab { position: fixed; bottom: 80px; right: 20px; width: 56px; height: 56px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; box-shadow: 0 4px 8px rgba(103, 80, 164, 0.4); cursor: pointer; z-index: 15; border: none; }
+        .fab { position: fixed; bottom: 80px; right: 20px; width: 56px; height: 56px; background: #6750A4; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; box-shadow: 0 4px 8px rgba(103, 80, 164, 0.4); cursor: pointer; z-index: 15; border: none; }
         .cat-item { display: flex; align-items: center; padding: 12px; }
         .cat-actions { display: flex; gap: 4px; }
-        .empty-msg { text-align: center; color: var(--gray); padding: 20px; font-size: 14px; }
+        .btn-small { padding: 6px 12px; font-size: 13px; border: none; border-radius: 8px; cursor: pointer; }
+        .btn-edit { background: #e3f2fd; color: #1976d2; }
+        .btn-delete { background: #ffebee; color: #d32f2f; }
     </style>
 </head>
 <body>
@@ -99,9 +94,8 @@
             </div>
             <div class="input-group"><label>Сумма (₽)</label><input type="number" id="inpAmount" placeholder="0" inputmode="decimal"></div>
             
-            <!-- КНОПКИ-КАТЕГОРИИ ВМЕСТО SELECT -->
-            <div id="catButtonsContainer">
-                <label style="font-size: 14px; color: var(--gray); margin-bottom: 6px; display: block; font-weight: 500;">Категория</label>
+            <div id="catSection">
+                <span class="cat-label">Категория</span>
                 <div class="cat-buttons" id="catButtons"></div>
             </div>
             
@@ -113,14 +107,14 @@
     <div id="screen-charts" class="screen">
         <div class="card">
             <h3 style="margin-top: 0;">Расходы по категориям</h3>
-            <p style="font-size: 13px; color: var(--gray); margin-bottom: 16px;">Текущий месяц</p>
+            <p style="font-size: 13px; color: #757575; margin-bottom: 16px;">Текущий месяц</p>
             <div id="chartsContainer"></div>
         </div>
     </div>
 
     <div id="screen-history" class="screen">
         <div class="card" id="historyContainer" style="min-height: 200px;">
-            <p class="empty-msg">История пуста</p>
+            <p style="text-align: center; color: #757575; padding: 20px;">История пуста</p>
         </div>
     </div>
 
@@ -162,9 +156,16 @@
         let transactions = {};
         let categories = {};
         let currentMode = 'expense';
-        let selectedCatId = null; // Выбранная категория
-        let dataLoaded = false;
+        let selectedCatId = null;
         let currentScreen = 'home';
+
+        // ДЕФОЛТНЫЕ КАТЕГОРИИ - ВСЕГДА ДОСТУПНЫ
+        const DEFAULT_CATS = {
+            cat1: { id: 'cat1', name: 'Еда', icon: '🍔', limit: 15000 },
+            cat2: { id: 'cat2', name: 'Жилье', icon: '🏠', limit: 30000 },
+            cat3: { id: 'cat3', name: 'Личные нужды', icon: '👤', limit: 10000 },
+            cat4: { id: 'cat4', name: 'Транспорт', icon: '🚕', limit: 5000 }
+        };
 
         function getMonthKey(ts) {
             const d = new Date(ts);
@@ -172,20 +173,21 @@
         }
         function formatMoney(a) { return new Intl.NumberFormat('ru-RU').format(Math.round(a)) + ' ₽'; }
 
+        // Загружаем категории из Firebase, если нет - используем дефолт
         db.ref('categories').on('value', (snap) => {
             const data = snap.val();
             if (data) { categories = data; } 
             else {
-                const defaults = { cat1: { id: 'cat1', name: 'Еда', icon: '🍔', limit: 15000 }, cat2: { id: 'cat2', name: 'Жилье', icon: '🏠', limit: 30000 }, cat3: { id: 'cat3', name: 'Личные нужды', icon: '👤', limit: 10000 }, cat4: { id: 'cat4', name: 'Транспорт', icon: '🚕', limit: 5000 } };
-                db.ref('categories').set(defaults);
-                categories = defaults;
+                db.ref('categories').set(DEFAULT_CATS);
+                categories = DEFAULT_CATS;
             }
-            checkLoaded(); renderCurrentScreen();
+            renderCategoryButtons(); // ПЕРЕРИСОВЫВАЕМ КНОПКИ КАЖДЫЙ РАЗ
+            renderCurrentScreen();
         });
 
         db.ref('transactions').on('value', (snap) => {
             transactions = snap.val() || {};
-            checkLoaded(); renderCurrentScreen();
+            renderCurrentScreen();
         });
 
         db.ref('.info/connected').on('value', (snap) => {
@@ -193,25 +195,18 @@
             el.innerText = snap.val() === true ? '🟢 Синхронизировано' : '🟡 Офлайн';
         });
 
-        function checkLoaded() {
-            if (!dataLoaded && Object.keys(categories).length > 0) {
-                dataLoaded = true;
-            }
-        }
-
-        // Рендер кнопок категорий (вместо select)
+        // РЕНДЕР КНОПОК КАТЕГОРИЙ - ВЫЗЫВАЕТСЯ ВСЕГДА
         function renderCategoryButtons() {
             const container = document.getElementById('catButtons');
+            if (!container) return;
             container.innerHTML = '';
-            const cats = Object.values(categories);
             
+            const cats = Object.values(categories);
             if (cats.length === 0) {
-                container.innerHTML = '<div class="empty-msg" style="grid-column: 1/-1;">Сначала создайте категорию во вкладке "Категории"</div>';
-                selectedCatId = null;
+                container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #757575; padding: 10px;">Нет категорий</div>';
                 return;
             }
             
-            // Если ничего не выбрано, выбираем первую
             if (!selectedCatId || !categories[selectedCatId]) {
                 selectedCatId = cats[0].id;
             }
@@ -219,10 +214,9 @@
             cats.forEach(cat => {
                 const btn = document.createElement('div');
                 btn.className = 'cat-btn' + (cat.id === selectedCatId ? ' selected' : '');
-                btn.innerHTML = `<span class="cat-icon">${cat.icon}</span>${cat.name}`;
+                btn.innerHTML = '<span class="cat-icon">' + cat.icon + '</span>' + cat.name;
                 btn.addEventListener('click', function() {
                     selectedCatId = cat.id;
-                    // Обновляем визуальное выделение
                     document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
                     btn.classList.add('selected');
                 });
@@ -234,8 +228,8 @@
             const amount = parseFloat(document.getElementById('inpAmount').value);
             const note = document.getElementById('inpNote').value;
             
-            if (!amount || amount <= 0) return alert('Введите сумму');
-            if (currentMode === 'expense' && !selectedCatId) return alert('Выберите категорию');
+            if (!amount || amount <= 0) { alert('Введите сумму'); return; }
+            if (currentMode === 'expense' && !selectedCatId) { alert('Выберите категорию'); return; }
             
             const finalAmount = currentMode === 'income' ? amount : -amount;
             const finalCatId = currentMode === 'income' ? 'income' : selectedCatId;
@@ -256,7 +250,7 @@
             const name = document.getElementById('newCatName').value.trim();
             const icon = document.getElementById('newCatIcon').value.trim() || '📦';
             const limit = parseFloat(document.getElementById('newCatLimit').value) || 0;
-            if (!name) return alert('Введите название');
+            if (!name) { alert('Введите название'); return; }
             const id = 'cat' + Date.now();
             db.ref('categories/' + id).set({ id, name, icon, limit }).then(() => {
                 document.getElementById('newCatName').value = ''; 
@@ -266,20 +260,20 @@
         
         function editCategory(id) {
             const cat = categories[id]; if (!cat) return;
-            const nl = prompt(`Лимит для "${cat.name}" (0 = без лимита):`, cat.limit);
+            const nl = prompt('Лимит для "' + cat.name + '" (0 = без лимита):', cat.limit);
             if (nl !== null) db.ref('categories/' + id).update({ limit: parseFloat(nl) || 0 });
         }
         
         function deleteCategory(id) {
             const cat = categories[id]; if (!cat) return;
-            if (confirm(`Удалить "${cat.name}"?`)) db.ref('categories/' + id).remove();
+            if (confirm('Удалить "' + cat.name + '"?')) db.ref('categories/' + id).remove();
         }
         
         function resetAllData() {
             if (confirm('Удалить ВСЕ данные?')) {
                 if (confirm('Точно? Это нельзя отменить!')) {
                     db.ref('transactions').remove();
-                    db.ref('categories').set({ cat1: { id: 'cat1', name: 'Еда', icon: '🍔', limit: 15000 }, cat2: { id: 'cat2', name: 'Жилье', icon: '🏠', limit: 30000 }, cat3: { id: 'cat3', name: 'Личные нужды', icon: '👤', limit: 10000 }, cat4: { id: 'cat4', name: 'Транспорт', icon: '🚕', limit: 5000 } });
+                    db.ref('categories').set(DEFAULT_CATS);
                 }
             }
         }
@@ -289,7 +283,7 @@
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById('screen-' + screen).classList.add('active');
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            document.querySelector(`.nav-item[data-screen="${screen}"]`).classList.add('active');
+            document.querySelector('.nav-item[data-screen="' + screen + '"]').classList.add('active');
             const titles = { home: 'Главная', add: 'Новая операция', charts: 'Графики', history: 'История', categories: 'Категории' };
             document.getElementById('pageTitle').innerText = titles[screen];
             document.getElementById('fabAdd').style.display = screen === 'add' ? 'none' : 'flex';
@@ -298,7 +292,7 @@
 
         function renderCurrentScreen() {
             if (currentScreen === 'home') renderHome();
-            if (currentScreen === 'add') renderAddScreen();
+            if (currentScreen === 'add') { renderCategoryButtons(); setMode(currentMode); }
             if (currentScreen === 'charts') renderCharts();
             if (currentScreen === 'history') renderHistory();
             if (currentScreen === 'categories') renderCategories();
@@ -308,7 +302,7 @@
             currentMode = mode;
             document.getElementById('btnExpense').className = 'toggle-btn ' + (mode === 'expense' ? 'active-expense' : '');
             document.getElementById('btnIncome').className = 'toggle-btn ' + (mode === 'income' ? 'active-income' : '');
-            document.getElementById('catButtonsContainer').style.display = mode === 'income' ? 'none' : 'block';
+            document.getElementById('catSection').style.display = mode === 'income' ? 'none' : 'block';
         }
 
         function renderHome() {
@@ -335,16 +329,11 @@
                     if (t.categoryId === cat.id && t.amount < 0 && getMonthKey(t.timestamp) === cur) spent += Math.abs(t.amount);
                 });
                 const pct = Math.min((spent / cat.limit) * 100, 100);
-                let sc = 'status-ok', st = '✅ В норме', col = '#4CAF50';
+                let sc = 'status-ok', st = '✅ В норме', col = '#2e7d32';
                 if (pct >= 100) { sc = 'status-bad'; st = '🚫 Превышение!'; col = '#d32f2f'; }
                 else if (pct >= 75) { sc = 'status-warn'; st = '⚠️ Близко к лимиту'; col = '#ed6c02'; }
-                c.innerHTML += `<div class="card" style="padding:12px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-weight:600;">${cat.icon} ${cat.name}</span><span class="status-badge ${sc}">${st}</span></div><div class="chart-bar-track"><div class="chart-bar-fill" style="width:${pct}%;background:${col};"></div></div><div style="display:flex;justify-content:space-between;font-size:13px;color:var(--gray);margin-top:6px;"><span>${formatMoney(spent)}</span><span>из ${formatMoney(cat.limit)}</span></div></div>`;
+                c.innerHTML += '<div class="card" style="padding:12px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-weight:600;">' + cat.icon + ' ' + cat.name + '</span><span class="status-badge ' + sc + '">' + st + '</span></div><div class="chart-bar-track"><div class="chart-bar-fill" style="width:' + pct + '%;background:' + col + ';"></div></div><div style="display:flex;justify-content:space-between;font-size:13px;color:#757575;margin-top:6px;"><span>' + formatMoney(spent) + '</span><span>из ' + formatMoney(cat.limit) + '</span></div></div>';
             });
-        }
-
-        function renderAddScreen() {
-            renderCategoryButtons(); // Рендерим кнопки вместо select
-            setMode(currentMode);
         }
 
         function renderCharts() {
@@ -358,25 +347,25 @@
                 }
             });
             const c = document.getElementById('chartsContainer'); c.innerHTML = '';
-            if (total === 0) { c.innerHTML = '<p class="empty-msg">В этом месяце расходов пока не было</p>'; return; }
+            if (total === 0) { c.innerHTML = '<p style="text-align:center;color:#757575;">В этом месяце расходов пока не было</p>'; return; }
             const sorted = Object.values(cs).filter(x => x.spent > 0).sort((a, b) => b.spent - a.spent);
-            const colors = ['#6750A4', '#2196F3', '#4CAF50', '#FF9800', '#F44336', '#9C27B0', '#00BCD4'];
+            const colors = ['#6750A4', '#2196F3', '#2e7d32', '#FF9800', '#d32f2f', '#9C27B0', '#00BCD4'];
             sorted.forEach((cat, i) => {
                 const p = ((cat.spent / total) * 100).toFixed(1);
-                c.innerHTML += `<div class="chart-bar-container"><div class="chart-bar-header"><span>${cat.icon} ${cat.name} <b>(${p}%)</b></span><span style="font-weight:600;">${formatMoney(cat.spent)}</span></div><div class="chart-bar-track"><div class="chart-bar-fill" style="width:${p}%;background:${colors[i % colors.length]};"></div></div></div>`;
+                c.innerHTML += '<div class="chart-bar-container"><div class="chart-bar-header"><span>' + cat.icon + ' ' + cat.name + ' <b>(' + p + '%)</b></span><span style="font-weight:600;">' + formatMoney(cat.spent) + '</span></div><div class="chart-bar-track"><div class="chart-bar-fill" style="width:' + p + '%;background:' + colors[i % colors.length] + ';"></div></div></div>';
             });
         }
 
         function renderHistory() {
             const c = document.getElementById('historyContainer');
             const list = Object.values(transactions).sort((a, b) => b.timestamp - a.timestamp);
-            if (list.length === 0) { c.innerHTML = '<p class="empty-msg">История пуста</p>'; return; }
+            if (list.length === 0) { c.innerHTML = '<p style="text-align:center;color:#757575;padding:20px;">История пуста</p>'; return; }
             c.innerHTML = '';
             list.forEach(t => {
                 const inc = t.amount > 0;
                 const cat = inc ? { name: 'Доход', icon: '💰' } : (categories[t.categoryId] || { name: 'Удалено', icon: '❓' });
                 const date = new Date(t.timestamp).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-                c.innerHTML += `<div class="transaction-item"><div class="t-icon">${cat.icon}</div><div class="t-info"><div class="t-name">${cat.name}</div>${t.note ? `<div class="t-note">${t.note}</div>` : ''}<div class="t-date">${date}</div></div><div class="t-amount ${inc ? 'income' : 'expense'}">${inc ? '+' : ''}${formatMoney(t.amount)}</div><button class="delete-btn" data-id="${t.id}">🗑</button></div>`;
+                c.innerHTML += '<div class="transaction-item"><div class="t-icon">' + cat.icon + '</div><div class="t-info"><div class="t-name">' + cat.name + '</div>' + (t.note ? '<div class="t-note">' + t.note + '</div>' : '') + '<div class="t-date">' + date + '</div></div><div class="t-amount ' + (inc ? 'income' : 'expense') + '">' + (inc ? '+' : '') + formatMoney(t.amount) + '</div><button class="delete-btn" data-id="' + t.id + '">🗑</button></div>';
             });
             document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', function() { deleteTransaction(this.getAttribute('data-id')); });
@@ -386,7 +375,7 @@
         function renderCategories() {
             const c = document.getElementById('categoriesList'); c.innerHTML = '';
             Object.values(categories).forEach(cat => {
-                c.innerHTML += `<div class="card cat-item"><span style="font-size:28px;margin-right:12px;">${cat.icon}</span><div style="flex:1;"><div style="font-weight:600;">${cat.name}</div><div style="font-size:13px;color:var(--gray);">Лимит: ${cat.limit > 0 ? formatMoney(cat.limit) : 'не установлен'}</div></div><div class="cat-actions"><button class="btn-small btn-edit" data-id="${cat.id}">✏️</button><button class="btn-small btn-delete" data-id="${cat.id}">🗑</button></div></div>`;
+                c.innerHTML += '<div class="card cat-item"><span style="font-size:28px;margin-right:12px;">' + cat.icon + '</span><div style="flex:1;"><div style="font-weight:600;">' + cat.name + '</div><div style="font-size:13px;color:#757575;">Лимит: ' + (cat.limit > 0 ? formatMoney(cat.limit) : 'не установлен') + '</div></div><div class="cat-actions"><button class="btn-small btn-edit" data-id="' + cat.id + '">✏️</button><button class="btn-small btn-delete" data-id="' + cat.id + '">🗑</button></div></div>';
             });
             document.querySelectorAll('.btn-edit').forEach(btn => {
                 btn.addEventListener('click', function() { editCategory(this.getAttribute('data-id')); });
@@ -396,7 +385,7 @@
             });
         }
 
-        // Обработчики через addEventListener
+        // Обработчики
         document.getElementById('btnExpense').addEventListener('click', function() { setMode('expense'); });
         document.getElementById('btnIncome').addEventListener('click', function() { setMode('income'); });
         document.getElementById('btnSave').addEventListener('click', saveTransaction);
@@ -408,6 +397,9 @@
             item.addEventListener('click', function() { navigate(this.getAttribute('data-screen')); });
         });
 
+        // ПЕРВЫЙ РЕНДЕР - СРАЗУ ПОКАЗЫВАЕМ ДЕФОЛТНЫЕ КАТЕГОРИИ
+        categories = DEFAULT_CATS;
+        renderCategoryButtons();
         navigate('home');
     </script>
 </body>
