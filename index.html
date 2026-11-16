@@ -92,4 +92,260 @@
 
     <div id="screen-charts" class="screen">
         <div class="card">
-            <h3 style="margin-top: 0;">Расходы по категориям</
+            <h3 style="margin-top: 0;">Расходы по категориям</h3>
+            <p style="font-size: 13px; color: var(--gray); margin-bottom: 16px;">Текущий месяц</p>
+            <div id="chartsContainer"></div>
+        </div>
+    </div>
+
+    <div id="screen-history" class="screen">
+        <div class="card" id="historyContainer" style="min-height: 200px;">
+            <p style="text-align: center; color: var(--gray); padding: 20px;">История пуста</p>
+        </div>
+    </div>
+
+    <div id="screen-categories" class="screen">
+        <div class="card">
+            <h3 style="margin-top: 0;">Добавить категорию</h3>
+            <div class="input-group"><label>Название</label><input type="text" id="newCatName" placeholder="Например: Развлечения"></div>
+            <div class="input-group"><label>Иконка (эмодзи)</label><input type="text" id="newCatIcon" placeholder="🎮" maxlength="2" value="📦"></div>
+            <div class="input-group"><label>Месячный лимит (0 = без лимита)</label><input type="number" id="newCatLimit" placeholder="0" inputmode="decimal"></div>
+            <button class="btn" id="btnAddCategory">Добавить категорию</button>
+        </div>
+        <h3 style="margin: 20px 0 12px; font-size: 16px;">Мои категории</h3>
+        <div id="categoriesList"></div>
+        <button class="btn btn-danger" id="btnReset">🗑 Сбросить все данные</button>
+    </div>
+
+    <button class="fab" id="fabAdd">+</button>
+
+    <div class="bottom-nav">
+        <div class="nav-item active" data-screen="home"><span class="icon">🏠</span>Главная</div>
+        <div class="nav-item" data-screen="charts"><span class="icon">📊</span>Графики</div>
+        <div class="nav-item" data-screen="history"><span class="icon">📜</span>История</div>
+        <div class="nav-item" data-screen="categories"><span class="icon">⚙️</span>Категории</div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyByYmyzEY_hYGFhG0iDrmUQkqicJ8nn8U",
+            authDomain: "tpatbl.firebaseapp.com",
+            databaseURL: "https://tpatbl-default-rtdb.firebaseio.com",
+            projectId: "tpatbl",
+            storageBucket: "tpatbl.firebasestorage.app",
+            messagingSenderId: "778952104017",
+            appId: "1:778952104017:web:deb74f539cff2c88460070"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let transactions = {};
+        let categories = {};
+        let currentMode = 'expense';
+        let dataLoaded = false;
+        let currentScreen = 'home';
+
+        function getMonthKey(ts) {
+            const d = new Date(ts);
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        }
+        function formatMoney(a) { return new Intl.NumberFormat('ru-RU').format(Math.round(a)) + ' ₽'; }
+
+        db.ref('categories').on('value', (snap) => {
+            const data = snap.val();
+            if (data) { categories = data; } 
+            else {
+                const defaults = { cat1: { id: 'cat1', name: 'Еда', icon: '🍔', limit: 15000 }, cat2: { id: 'cat2', name: 'Жилье', icon: '🏠', limit: 30000 }, cat3: { id: 'cat3', name: 'Личные нужды', icon: '👤', limit: 10000 }, cat4: { id: 'cat4', name: 'Транспорт', icon: '🚕', limit: 5000 } };
+                db.ref('categories').set(defaults);
+                categories = defaults;
+            }
+            checkLoaded(); renderCurrentScreen();
+        });
+
+        db.ref('transactions').on('value', (snap) => {
+            transactions = snap.val() || {};
+            checkLoaded(); renderCurrentScreen();
+        });
+
+        db.ref('.info/connected').on('value', (snap) => {
+            const el = document.getElementById('syncStatus');
+            el.innerText = snap.val() === true ? '🟢 Синхронизировано' : '🟡 Офлайн';
+        });
+
+        function checkLoaded() {
+            if (!dataLoaded && Object.keys(categories).length > 0) {
+                dataLoaded = true;
+            }
+        }
+
+        function saveTransaction() {
+            const amount = parseFloat(document.getElementById('inpAmount').value);
+            const note = document.getElementById('inpNote').value;
+            const catId = document.getElementById('inpCategory').value;
+            if (!amount || amount <= 0) return alert('Введите сумму');
+            if (currentMode === 'expense' && !catId) return alert('Выберите категорию');
+            const finalAmount = currentMode === 'income' ? amount : -amount;
+            const finalCatId = currentMode === 'income' ? 'income' : catId;
+            const id = 't' + Date.now();
+            db.ref('transactions/' + id).set({ id, amount: finalAmount, categoryId: finalCatId, note, timestamp: Date.now() })
+                .then(() => { document.getElementById('inpAmount').value = ''; document.getElementById('inpNote').value = ''; navigate('home'); })
+                .catch(err => alert('Ошибка: ' + err.message));
+        }
+
+        function deleteTransaction(id) { if (confirm('Удалить?')) db.ref('transactions/' + id).remove(); }
+        function addCategory() {
+            const name = document.getElementById('newCatName').value.trim();
+            const icon = document.getElementById('newCatIcon').value.trim() || '📦';
+            const limit = parseFloat(document.getElementById('newCatLimit').value) || 0;
+            if (!name) return alert('Введите название');
+            db.ref('categories/cat' + Date.now()).set({ id: 'cat' + Date.now(), name, icon, limit }).then(() => {
+                document.getElementById('newCatName').value = ''; document.getElementById('newCatLimit').value = '';
+            });
+        }
+        function editCategory(id) {
+            const cat = categories[id]; if (!cat) return;
+            const nl = prompt(`Лимит для "${cat.name}" (0 = без лимита):`, cat.limit);
+            if (nl !== null) db.ref('categories/' + id).update({ limit: parseFloat(nl) || 0 });
+        }
+        function deleteCategory(id) {
+            const cat = categories[id]; if (!cat) return;
+            if (confirm(`Удалить "${cat.name}"?`)) db.ref('categories/' + id).remove();
+        }
+        function resetAllData() {
+            if (confirm('Удалить ВСЕ данные?')) {
+                if (confirm('Точно? Это нельзя отменить!')) {
+                    db.ref('transactions').remove();
+                    db.ref('categories').set({ cat1: { id: 'cat1', name: 'Еда', icon: '🍔', limit: 15000 }, cat2: { id: 'cat2', name: 'Жилье', icon: '🏠', limit: 30000 }, cat3: { id: 'cat3', name: 'Личные нужды', icon: '👤', limit: 10000 }, cat4: { id: 'cat4', name: 'Транспорт', icon: '🚕', limit: 5000 } });
+                }
+            }
+        }
+
+        function navigate(screen) {
+            currentScreen = screen;
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('screen-' + screen).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.querySelector(`.nav-item[data-screen="${screen}"]`).classList.add('active');
+            const titles = { home: 'Главная', add: 'Новая операция', charts: 'Графики', history: 'История', categories: 'Категории' };
+            document.getElementById('pageTitle').innerText = titles[screen];
+            document.getElementById('fabAdd').style.display = screen === 'add' ? 'none' : 'flex';
+            renderCurrentScreen();
+        }
+
+        function renderCurrentScreen() {
+            if (currentScreen === 'home') renderHome();
+            if (currentScreen === 'add') renderAddScreen();
+            if (currentScreen === 'charts') renderCharts();
+            if (currentScreen === 'history') renderHistory();
+            if (currentScreen === 'categories') renderCategories();
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('btnExpense').className = 'toggle-btn ' + (mode === 'expense' ? 'active-expense' : '');
+            document.getElementById('btnIncome').className = 'toggle-btn ' + (mode === 'income' ? 'active-income' : '');
+            document.getElementById('catGroup').style.display = mode === 'income' ? 'none' : 'block';
+        }
+
+        function renderHome() {
+            const cur = getMonthKey(Date.now());
+            let balance = 0, monthSpent = 0;
+            Object.values(transactions).forEach(t => {
+                balance += t.amount;
+                if (t.amount < 0 && getMonthKey(t.timestamp) === cur) monthSpent += Math.abs(t.amount);
+            });
+            document.getElementById('totalBalance').innerText = formatMoney(balance);
+            document.getElementById('monthSpent').innerText = formatMoney(monthSpent);
+            const days = new Date().getDate();
+            const avg = days > 0 ? monthSpent / days : 0;
+            const forecast = avg > 0 ? Math.floor(balance / avg) : 999;
+            const fd = document.getElementById('forecastDays');
+            fd.innerText = forecast > 365 ? '∞' : forecast + ' дней';
+            fd.style.color = forecast < 7 ? '#ff8a80' : (forecast < 14 ? '#ffd180' : '#a5d6a7');
+
+            const c = document.getElementById('limitsContainer'); c.innerHTML = '';
+            Object.values(categories).forEach(cat => {
+                if (cat.limit <= 0) return;
+                let spent = 0;
+                Object.values(transactions).forEach(t => {
+                    if (t.categoryId === cat.id && t.amount < 0 && getMonthKey(t.timestamp) === cur) spent += Math.abs(t.amount);
+                });
+                const pct = Math.min((spent / cat.limit) * 100, 100);
+                let sc = 'status-ok', st = '✅ В норме', col = '#4CAF50';
+                if (pct >= 100) { sc = 'status-bad'; st = '🚫 Превышение!'; col = '#d32f2f'; }
+                else if (pct >= 75) { sc = 'status-warn'; st = '⚠️ Близко к лимиту'; col = '#ed6c02'; }
+                c.innerHTML += `<div class="card" style="padding:12px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-weight:600;">${cat.icon} ${cat.name}</span><span class="status-badge ${sc}">${st}</span></div><div class="chart-bar-track"><div class="chart-bar-fill" style="width:${pct}%;background:${col};"></div></div><div style="display:flex;justify-content:space-between;font-size:13px;color:var(--gray);margin-top:6px;"><span>${formatMoney(spent)}</span><span>из ${formatMoney(cat.limit)}</span></div></div>`;
+            });
+        }
+
+        function renderAddScreen() {
+            const sel = document.getElementById('inpCategory'); sel.innerHTML = '';
+            Object.values(categories).forEach(c => { sel.innerHTML += `<option value="${c.id}">${c.icon} ${c.name}</option>`; });
+            setMode(currentMode);
+        }
+
+        function renderCharts() {
+            const cur = getMonthKey(Date.now());
+            const cs = {};
+            Object.values(categories).forEach(c => { cs[c.id] = { ...c, spent: 0 }; });
+            let total = 0;
+            Object.values(transactions).forEach(t => {
+                if (t.amount < 0 && getMonthKey(t.timestamp) === cur && cs[t.categoryId]) {
+                    cs[t.categoryId].spent += Math.abs(t.amount); total += Math.abs(t.amount);
+                }
+            });
+            const c = document.getElementById('chartsContainer'); c.innerHTML = '';
+            if (total === 0) { c.innerHTML = '<p style="text-align:center;color:var(--gray);">В этом месяце расходов пока не было</p>'; return; }
+            const sorted = Object.values(cs).filter(x => x.spent > 0).sort((a, b) => b.spent - a.spent);
+            const colors = ['#6750A4', '#2196F3', '#4CAF50', '#FF9800', '#F44336', '#9C27B0', '#00BCD4'];
+            sorted.forEach((cat, i) => {
+                const p = ((cat.spent / total) * 100).toFixed(1);
+                c.innerHTML += `<div class="chart-bar-container"><div class="chart-bar-header"><span>${cat.icon} ${cat.name} <b>(${p}%)</b></span><span style="font-weight:600;">${formatMoney(cat.spent)}</span></div><div class="chart-bar-track"><div class="chart-bar-fill" style="width:${p}%;background:${colors[i % colors.length]};"></div></div></div>`;
+            });
+        }
+
+        function renderHistory() {
+            const c = document.getElementById('historyContainer');
+            const list = Object.values(transactions).sort((a, b) => b.timestamp - a.timestamp);
+            if (list.length === 0) { c.innerHTML = '<p style="text-align:center;color:var(--gray);padding:20px;">История пуста</p>'; return; }
+            c.innerHTML = '';
+            list.forEach(t => {
+                const inc = t.amount > 0;
+                const cat = inc ? { name: 'Доход', icon: '💰' } : (categories[t.categoryId] || { name: 'Удалено', icon: '❓' });
+                const date = new Date(t.timestamp).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+                c.innerHTML += `<div class="transaction-item"><div class="t-icon">${cat.icon}</div><div class="t-info"><div class="t-name">${cat.name}</div>${t.note ? `<div class="t-note">${t.note}</div>` : ''}<div class="t-date">${date}</div></div><div class="t-amount ${inc ? 'income' : 'expense'}">${inc ? '+' : ''}${formatMoney(t.amount)}</div><button class="delete-btn" data-id="${t.id}">🗑</button></div>`;
+            });
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', function() { deleteTransaction(this.getAttribute('data-id')); });
+            });
+        }
+
+        function renderCategories() {
+            const c = document.getElementById('categoriesList'); c.innerHTML = '';
+            Object.values(categories).forEach(cat => {
+                c.innerHTML += `<div class="card cat-item"><span style="font-size:28px;margin-right:12px;">${cat.icon}</span><div style="flex:1;"><div style="font-weight:600;">${cat.name}</div><div style="font-size:13px;color:var(--gray);">Лимит: ${cat.limit > 0 ? formatMoney(cat.limit) : 'не установлен'}</div></div><div class="cat-actions"><button class="btn-small btn-edit" data-id="${cat.id}">✏️</button><button class="btn-small btn-delete" data-id="${cat.id}">🗑</button></div></div>`;
+            });
+            document.querySelectorAll('.btn-edit').forEach(btn => {
+                btn.addEventListener('click', function() { editCategory(this.getAttribute('data-id')); });
+            });
+            document.querySelectorAll('.btn-delete').forEach(btn => {
+                btn.addEventListener('click', function() { deleteCategory(this.getAttribute('data-id')); });
+            });
+        }
+
+        // Обработчики через addEventListener
+        document.getElementById('btnExpense').addEventListener('click', function() { setMode('expense'); });
+        document.getElementById('btnIncome').addEventListener('click', function() { setMode('income'); });
+        document.getElementById('btnSave').addEventListener('click', saveTransaction);
+        document.getElementById('btnAddCategory').addEventListener('click', addCategory);
+        document.getElementById('btnReset').addEventListener('click', resetAllData);
+        document.getElementById('fabAdd').addEventListener('click', function() { navigate('add'); });
+
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function() { navigate(this.getAttribute('data-screen')); });
+        });
+
+        navigate('home');
+    </script>
+</body>
+</html>
