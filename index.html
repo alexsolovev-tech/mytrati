@@ -11,21 +11,6 @@
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding-bottom: 70px; }
         
-        #passwordScreen {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: var(--primary); color: white; z-index: 9999;
-            display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
-        }
-        #passwordScreen input {
-            width: 100%; max-width: 250px; padding: 14px; border-radius: 12px; border: none;
-            font-size: 24px; text-align: center; margin: 20px 0; letter-spacing: 4px; color: var(--text);
-        }
-        #passwordScreen button {
-            padding: 14px 40px; border-radius: 12px; border: 2px solid white; background: transparent;
-            color: white; font-size: 18px; font-weight: 600; cursor: pointer;
-        }
-        #passwordScreen .error { color: #ff8a80; margin-top: 10px; display: none; font-weight: bold; }
-
         .header { background: var(--primary); color: white; padding: 20px 16px 16px; position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .header h1 { margin: 0; font-size: 22px; font-weight: 600; }
         .header .sync-status { font-size: 12px; opacity: 0.85; margin-top: 4px; }
@@ -78,21 +63,24 @@
         .cat-item { display: flex; align-items: center; padding: 12px; }
         .cat-actions { display: flex; gap: 4px; }
         .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.95); z-index: 9998; display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--primary); font-weight: 600; }
-        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-    <div id="loadingOverlay" class="loading-overlay">⏳ Загрузка...</div>
-
-    <!-- ЭКРАН ПАРОЛЯ -->
-    <div id="passwordScreen">
-        <h2 style="margin-bottom: 10px;">🔒 Мои Финансы</div>
-        <p style="opacity: 0.8; margin-bottom: 20px;">Введите пароль для доступа</p>
-        <input type="password" id="passwordInput" placeholder="••••" inputmode="numeric">
-        <button onclick="checkPassword()">Войти</button>
-        <div class="error" id="passwordError">Неверный пароль</div>
+    <!-- ПУЛЕНЕПРОБИВАЕМЫЙ ЭКРАН ПАРОЛЯ (стили прямо в тегах) -->
+    <div id="passwordScreen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#6750A4; color:white; z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:20px;">
+        <h1 style="font-size: 50px; margin: 0 0 10px 0;">🔒</h1>
+        <h2 style="margin: 0 0 10px 0; font-size: 24px;">Мои Финансы</h2>
+        <p style="margin: 0 0 25px 0; opacity: 0.8; font-size: 16px;">Введите пароль (по умолчанию 1234)</p>
+        
+        <input type="text" id="passwordInput" placeholder="1234" style="width: 200px; padding: 15px; font-size: 24px; text-align: center; border-radius: 12px; border: 3px solid white; background: white; color: black; margin-bottom: 20px; outline: none; font-weight: bold; letter-spacing: 5px;">
+        
+        <button onclick="checkPassword()" style="padding: 15px 50px; font-size: 18px; font-weight: bold; background: white; color: #6750A4; border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">Войти</button>
+        
+        <p id="passwordError" style="color: #ff8a80; margin-top: 20px; display: none; font-weight: bold; font-size: 16px; background: rgba(0,0,0,0.2); padding: 8px 16px; border-radius: 8px;">Неверный пароль!</p>
     </div>
+
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">⏳ Загрузка данных...</div>
 
     <div class="header">
         <h1 id="pageTitle">Главная</h1>
@@ -160,20 +148,19 @@
     </div>
 
     <script>
-        // 🔑 ПАРОЛЬ (поменяй "1234" на свой, если хочешь)
-        const CORRECT_PASSWORD = "1234";
-
         function checkPassword() {
             const input = document.getElementById('passwordInput').value;
-            if (input === CORRECT_PASSWORD) {
-                document.getElementById('passwordScreen').classList.add('hidden');
-                document.getElementById('loadingOverlay').classList.remove('hidden');
+            if (input === "1234") {
+                document.getElementById('passwordScreen').style.display = 'none';
+                document.getElementById('loadingOverlay').style.display = 'flex';
                 initApp();
             } else {
                 document.getElementById('passwordError').style.display = 'block';
                 document.getElementById('passwordInput').value = '';
             }
         }
+        
+        // Позволяет нажать Enter на клавиатуре
         document.getElementById('passwordInput').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') checkPassword();
         });
@@ -227,7 +214,7 @@
             function checkLoaded() {
                 if (!dataLoaded && Object.keys(categories).length > 0) {
                     dataLoaded = true;
-                    document.getElementById('loadingOverlay').classList.add('hidden');
+                    document.getElementById('loadingOverlay').style.display = 'none';
                 }
             }
 
