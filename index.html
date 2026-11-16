@@ -26,11 +26,24 @@
         .btn-delete { background: #ffebee; color: var(--red); }
         .input-group { margin-bottom: 16px; }
         .input-group label { display: block; font-size: 14px; color: var(--gray); margin-bottom: 6px; font-weight: 500; }
-        .input-group input, .input-group select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; background: white; outline: none; }
+        .input-group input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; background: white; outline: none; }
         .toggle-group { display: flex; gap: 8px; margin-bottom: 16px; }
         .toggle-btn { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 10px; text-align: center; font-weight: 600; cursor: pointer; background: white; }
         .toggle-btn.active-expense { background: #ffebee; color: var(--red); border-color: var(--red); }
         .toggle-btn.active-income { background: #e8f5e9; color: var(--green); border-color: var(--green); }
+        
+        /* Кнопки категорий вместо select */
+        .cat-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+        .cat-btn {
+            padding: 12px; border: 2px solid #ddd; border-radius: 12px; background: white;
+            text-align: center; cursor: pointer; font-size: 14px; font-weight: 500;
+            transition: all 0.2s;
+        }
+        .cat-btn.selected {
+            border-color: var(--primary); background: #ede7f6; color: var(--primary); font-weight: 700;
+        }
+        .cat-btn .cat-icon { font-size: 24px; display: block; margin-bottom: 4px; }
+        
         .transaction-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; }
         .transaction-item:last-child { border-bottom: none; }
         .t-icon { font-size: 28px; margin-right: 12px; width: 40px; text-align: center; }
@@ -57,6 +70,7 @@
         .fab { position: fixed; bottom: 80px; right: 20px; width: 56px; height: 56px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; box-shadow: 0 4px 8px rgba(103, 80, 164, 0.4); cursor: pointer; z-index: 15; border: none; }
         .cat-item { display: flex; align-items: center; padding: 12px; }
         .cat-actions { display: flex; gap: 4px; }
+        .empty-msg { text-align: center; color: var(--gray); padding: 20px; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -84,7 +98,13 @@
                 <div class="toggle-btn" id="btnIncome">Доход (ЗП)</div>
             </div>
             <div class="input-group"><label>Сумма (₽)</label><input type="number" id="inpAmount" placeholder="0" inputmode="decimal"></div>
-            <div class="input-group" id="catGroup"><label>Категория</label><select id="inpCategory"></select></div>
+            
+            <!-- КНОПКИ-КАТЕГОРИИ ВМЕСТО SELECT -->
+            <div id="catButtonsContainer">
+                <label style="font-size: 14px; color: var(--gray); margin-bottom: 6px; display: block; font-weight: 500;">Категория</label>
+                <div class="cat-buttons" id="catButtons"></div>
+            </div>
+            
             <div class="input-group"><label>Заметка (необязательно)</label><input type="text" id="inpNote" placeholder="Например: обед, такси..."></div>
             <button class="btn" id="btnSave">Сохранить операцию</button>
         </div>
@@ -100,7 +120,7 @@
 
     <div id="screen-history" class="screen">
         <div class="card" id="historyContainer" style="min-height: 200px;">
-            <p style="text-align: center; color: var(--gray); padding: 20px;">История пуста</p>
+            <p class="empty-msg">История пуста</p>
         </div>
     </div>
 
@@ -142,6 +162,7 @@
         let transactions = {};
         let categories = {};
         let currentMode = 'expense';
+        let selectedCatId = null; // Выбранная категория
         let dataLoaded = false;
         let currentScreen = 'home';
 
@@ -178,39 +199,82 @@
             }
         }
 
+        // Рендер кнопок категорий (вместо select)
+        function renderCategoryButtons() {
+            const container = document.getElementById('catButtons');
+            container.innerHTML = '';
+            const cats = Object.values(categories);
+            
+            if (cats.length === 0) {
+                container.innerHTML = '<div class="empty-msg" style="grid-column: 1/-1;">Сначала создайте категорию во вкладке "Категории"</div>';
+                selectedCatId = null;
+                return;
+            }
+            
+            // Если ничего не выбрано, выбираем первую
+            if (!selectedCatId || !categories[selectedCatId]) {
+                selectedCatId = cats[0].id;
+            }
+            
+            cats.forEach(cat => {
+                const btn = document.createElement('div');
+                btn.className = 'cat-btn' + (cat.id === selectedCatId ? ' selected' : '');
+                btn.innerHTML = `<span class="cat-icon">${cat.icon}</span>${cat.name}`;
+                btn.addEventListener('click', function() {
+                    selectedCatId = cat.id;
+                    // Обновляем визуальное выделение
+                    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                });
+                container.appendChild(btn);
+            });
+        }
+
         function saveTransaction() {
             const amount = parseFloat(document.getElementById('inpAmount').value);
             const note = document.getElementById('inpNote').value;
-            const catId = document.getElementById('inpCategory').value;
+            
             if (!amount || amount <= 0) return alert('Введите сумму');
-            if (currentMode === 'expense' && !catId) return alert('Выберите категорию');
+            if (currentMode === 'expense' && !selectedCatId) return alert('Выберите категорию');
+            
             const finalAmount = currentMode === 'income' ? amount : -amount;
-            const finalCatId = currentMode === 'income' ? 'income' : catId;
+            const finalCatId = currentMode === 'income' ? 'income' : selectedCatId;
             const id = 't' + Date.now();
+            
             db.ref('transactions/' + id).set({ id, amount: finalAmount, categoryId: finalCatId, note, timestamp: Date.now() })
-                .then(() => { document.getElementById('inpAmount').value = ''; document.getElementById('inpNote').value = ''; navigate('home'); })
+                .then(() => { 
+                    document.getElementById('inpAmount').value = ''; 
+                    document.getElementById('inpNote').value = ''; 
+                    navigate('home'); 
+                })
                 .catch(err => alert('Ошибка: ' + err.message));
         }
 
         function deleteTransaction(id) { if (confirm('Удалить?')) db.ref('transactions/' + id).remove(); }
+        
         function addCategory() {
             const name = document.getElementById('newCatName').value.trim();
             const icon = document.getElementById('newCatIcon').value.trim() || '📦';
             const limit = parseFloat(document.getElementById('newCatLimit').value) || 0;
             if (!name) return alert('Введите название');
-            db.ref('categories/cat' + Date.now()).set({ id: 'cat' + Date.now(), name, icon, limit }).then(() => {
-                document.getElementById('newCatName').value = ''; document.getElementById('newCatLimit').value = '';
+            const id = 'cat' + Date.now();
+            db.ref('categories/' + id).set({ id, name, icon, limit }).then(() => {
+                document.getElementById('newCatName').value = ''; 
+                document.getElementById('newCatLimit').value = '';
             });
         }
+        
         function editCategory(id) {
             const cat = categories[id]; if (!cat) return;
             const nl = prompt(`Лимит для "${cat.name}" (0 = без лимита):`, cat.limit);
             if (nl !== null) db.ref('categories/' + id).update({ limit: parseFloat(nl) || 0 });
         }
+        
         function deleteCategory(id) {
             const cat = categories[id]; if (!cat) return;
             if (confirm(`Удалить "${cat.name}"?`)) db.ref('categories/' + id).remove();
         }
+        
         function resetAllData() {
             if (confirm('Удалить ВСЕ данные?')) {
                 if (confirm('Точно? Это нельзя отменить!')) {
@@ -244,7 +308,7 @@
             currentMode = mode;
             document.getElementById('btnExpense').className = 'toggle-btn ' + (mode === 'expense' ? 'active-expense' : '');
             document.getElementById('btnIncome').className = 'toggle-btn ' + (mode === 'income' ? 'active-income' : '');
-            document.getElementById('catGroup').style.display = mode === 'income' ? 'none' : 'block';
+            document.getElementById('catButtonsContainer').style.display = mode === 'income' ? 'none' : 'block';
         }
 
         function renderHome() {
@@ -279,8 +343,7 @@
         }
 
         function renderAddScreen() {
-            const sel = document.getElementById('inpCategory'); sel.innerHTML = '';
-            Object.values(categories).forEach(c => { sel.innerHTML += `<option value="${c.id}">${c.icon} ${c.name}</option>`; });
+            renderCategoryButtons(); // Рендерим кнопки вместо select
             setMode(currentMode);
         }
 
@@ -295,7 +358,7 @@
                 }
             });
             const c = document.getElementById('chartsContainer'); c.innerHTML = '';
-            if (total === 0) { c.innerHTML = '<p style="text-align:center;color:var(--gray);">В этом месяце расходов пока не было</p>'; return; }
+            if (total === 0) { c.innerHTML = '<p class="empty-msg">В этом месяце расходов пока не было</p>'; return; }
             const sorted = Object.values(cs).filter(x => x.spent > 0).sort((a, b) => b.spent - a.spent);
             const colors = ['#6750A4', '#2196F3', '#4CAF50', '#FF9800', '#F44336', '#9C27B0', '#00BCD4'];
             sorted.forEach((cat, i) => {
@@ -307,7 +370,7 @@
         function renderHistory() {
             const c = document.getElementById('historyContainer');
             const list = Object.values(transactions).sort((a, b) => b.timestamp - a.timestamp);
-            if (list.length === 0) { c.innerHTML = '<p style="text-align:center;color:var(--gray);padding:20px;">История пуста</p>'; return; }
+            if (list.length === 0) { c.innerHTML = '<p class="empty-msg">История пуста</p>'; return; }
             c.innerHTML = '';
             list.forEach(t => {
                 const inc = t.amount > 0;
